@@ -1,58 +1,166 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Line Mazd - لوحة التحكم (Admin)</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background-color: #0f172a; color: #fff; padding: 20px; }
-        header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: 1px solid #334155; margin-bottom: 30px; }
-        h1 { color: #ef4444; font-size: 22px; }
-        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
-        .stat-card { background: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; }
-        .stat-card h3 { font-size: 14px; color: #94a3b8; }
-        .stat-card p { font-size: 24px; font-weight: bold; color: #38bdf8; margin-top: 5px; }
-        table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 8px; overflow: hidden; margin-top: 10px; }
-        th, td { padding: 12px 15px; text-align: right; border-bottom: 1px solid #334155; }
-        th { background: #334155; color: #cbd5e1; }
-        .btn-approve { background: #22c55e; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
-        .btn-reject { background: #ef4444; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 5px; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>لوحة التحكم - Line Mazd</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { margin: 0; background-color: #0f172a; color: #fff; font-family: system-ui, -apple-system, sans-serif; padding: 15px; }
+    .card { background-color: #1e293b; padding: 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #334155; }
+    .stat-box { background: #0f172a; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #334155; }
+    button { cursor: pointer; }
+  </style>
 </head>
 <body>
-    <header>
-        <h1>لوحة إشراف Line Mazd</h1>
-        <span>مرحباً بك يا مدير</span>
-    </header>
+  <div id="root"></div>
 
-    <div class="stats">
-        <div class="stat-card"><h3>إجمالي الطلبات</h3><p>12</p></div>
-        <div class="stat-card"><h3>طلبات تنتظر الموافقة</h3><p>3</p></div>
-        <div class="stat-card"><h3>إجمالي الأرباح</h3><p>150.00 د.ل</p></div>
-    </div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    const { createClient } = supabase;
 
-    <h2>طلبات شحن الرصيد المعلقة</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>اسم الزبون</th>
-                <th>طريقة التحويل</th>
-                <th>القيمة</th>
-                <th>الإجراء</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>عبدالرحمن محمود</td>
-                <td>سداد / MobiCash</td>
-                <td>50.00 د.ل</td>
-                <td>
-                    <button class="btn-approve" onclick="alert('تمت الموافقة وإضافة الرصيد للزبون')">موافقة</button>
-                    <button class="btn-reject" onclick="alert('تم رفض الطلب')">رفض</button>
-                </td>
-            </tr>
-        </tbody>
-    </table>
+    const db = createClient('https://alphhjktqdoubsaxjrgm.supabase.co', 'sb_publishable_Yyzx9XadPI-ucUkpppQNEg_PGGWqWxx');
+
+    function AdminApp() {
+      const [isAuthenticated, setIsAuthenticated] = useState(false);
+      const [passwordInput, setPasswordInput] = useState('');
+      
+      const [visitorsCount, setVisitorsCount] = useState(0);
+      const [orders, setOrders] = useState([]);
+      const [reports, setReports] = useState([]);
+      
+      const [codeModalOrder, setCodeModalOrder] = useState(null);
+      const [digitalCode, setDigitalCode] = useState('');
+
+      useEffect(() => {
+        if (isAuthenticated) {
+          loadAdminData();
+        }
+      }, [isAuthenticated]);
+
+      async function loadAdminData() {
+        // الزوار
+        const { count: vCount } = await db.from('visitors').select('*', { count: 'exact', head: true });
+        setVisitorsCount(vCount || 0);
+
+        // الطلبات
+        const { data: ords } = await db.from('orders').select('*').order('id', { ascending: false });
+        if (ords) setOrders(ords);
+
+        // البلاغات
+        const { data: reps } = await db.from('reports').select('*').order('id', { ascending: false });
+        if (reps) setReports(reps);
+      }
+
+      function handleLogin(e) {
+        e.preventDefault();
+        if (passwordInput === '952007') {
+          setIsAuthenticated(true);
+        } else {
+          alert('كلمة السر خاطئة!');
+        }
+      }
+
+      async function updateOrderStatus(id, status) {
+        await db.from('orders').update({ status }).eq('id', id);
+        loadAdminData();
+      }
+
+      async function handleSaveCode(e) {
+        e.preventDefault();
+        await db.from('orders').update({ digital_code: digitalCode, status: 'completed' }).eq('id', codeModalOrder.id);
+        alert('تم تسليم الكود للزبون بنجاح!');
+        setCodeModalOrder(null);
+        setDigitalCode('');
+        loadAdminData();
+      }
+
+      if (!isAuthenticated) {
+        return (
+          <div style={{ maxWidth: '300px', margin: '100px auto', textAlign: 'center' }}>
+            <h2>تسجيل الدخول - Line Mazd</h2>
+            <form onSubmit={handleLogin}>
+              <input type="password" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="كلمة السر" style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '6px' }} />
+              <button style={{ width: '100%', padding: '10px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px' }}>دخول</button>
+            </form>
+          </div>
+        );
+      }
+
+      const pendingOrders = orders.filter(o => o.status === 'pending');
+      const completedOrders = orders.filter(o => o.status === 'completed');
+
+      return (
+        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+          <h2>لوحة التحكم - Line Mazd</h2>
+
+          {/* الإحصائيات */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }}>
+            <div className="stat-box">
+              <h4 style={{ margin: 0, color: '#38bdf8' }}>عدد الزوار</h4>
+              <p style={{ fontSize: '20px', fontWeight: 'bold', margin: '5px 0' }}>{visitorsCount}</p>
+            </div>
+            <div className="stat-box">
+              <h4 style={{ margin: 0, color: '#f59e0b' }}>طلبات قيد الانتظار</h4>
+              <p style={{ fontSize: '20px', fontWeight: 'bold', margin: '5px 0' }}>{pendingOrders.length}</p>
+            </div>
+            <div className="stat-box">
+              <h4 style={{ margin: 0, color: '#22c55e' }}>الطلبات المكتملة</h4>
+              <p style={{ fontSize: '20px', fontWeight: 'bold', margin: '5px 0' }}>{completedOrders.length}</p>
+            </div>
+          </div>
+
+          {/* قسم الطلبات */}
+          <h3>📋 إدارة الطلبات</h3>
+          {orders.map(o => (
+            <div key={o.id} className="card">
+              <p><b>المنتج:</b> {o.product_name} ({o.price} د.ل)</p>
+              <p><b>الآيدي:</b> {o.player_id}</p>
+              <p><b>طريقة الدفع:</b> {o.payment_method}</p>
+              <p><b>رقم المحول / الهاتف:</b> {o.sender_phone || o.card_code}</p>
+              {o.receipt_url && <p><a href={o.receipt_url} target="_blank" style={{ color: '#38bdf8' }}>🖼️ عرض صورة الإثبات</a></p>}
+              {o.digital_code && <p style={{ color: '#22c55e' }}><b>الكود المسلّم:</b> {o.digital_code}</p>}
+              <p><b>الحالة:</b> {o.status === 'pending' ? '⏳ قيد الانتظار' : '✅ مكتمل'}</p>
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                <button onClick={() => updateOrderStatus(o.id, 'completed')} style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '4px' }}>تأكيد الشحن</button>
+                <button onClick={() => setCodeModalOrder(o)} style={{ backgroundColor: '#0284c7', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '4px' }}>🔑 إرفاق كود (آيتونز)</button>
+                <button onClick={() => updateOrderStatus(o.id, 'cancelled')} style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '4px' }}>إلغاء</button>
+              </div>
+            </div>
+          ))}
+
+          {/* قسم البلاغات */}
+          <h3 style={{ marginTop: '30px', color: '#ef4444' }}>⚠️ قسم البلاغات والشكاوى</h3>
+          {reports.map(r => (
+            <div key={r.id} className="card" style={{ borderRight: '4px solid #ef4444' }}>
+              <p><b>رقم التواصل:</b> {r.user_phone}</p>
+              <p><b>المشكلة:</b> {r.message}</p>
+            </div>
+          ))}
+
+          {/* نافذة إدراج الكود */}
+          {codeModalOrder && (
+            <div style={{ position: 'fixed', top:0, left:0, right:0, bottom:0, background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <div style={{ background: '#1e293b', padding: '20px', borderRadius: '8px', width: '300px' }}>
+                <h4>إرفاق كود للطلب #{codeModalOrder.id}</h4>
+                <form onSubmit={handleSaveCode}>
+                  <input required value={digitalCode} onChange={e => setDigitalCode(e.target.value)} placeholder="أدخل كود الكرت" style={{ width: '100%', padding: '8px', marginBottom: '10px' }} />
+                  <button type="submit" style={{ width: '100%', backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '8px', borderRadius: '4px' }}>حفظ وإرسال للزبون</button>
+                  <button type="button" onClick={() => setCodeModalOrder(null)} style={{ width: '100%', backgroundColor: '#64748b', color: '#fff', border: 'none', padding: '8px', borderRadius: '4px', marginTop: '5px' }}>إلغاء</button>
+                </form>
+              </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<AdminApp />);
+  </script>
 </body>
 </html>
